@@ -1,6 +1,11 @@
 import { createCfg } from "./cfg/cfg.service";
 import type { Cfg } from "./cfg/types/cfg";
-import { print } from "./cfg/utils/grammar-operations.utils";
+import {
+  findGenerativeSymbols,
+  findReachableSymbols,
+  print,
+  removeUselessSymbols,
+} from "./cfg/utils/grammar-operations.utils";
 
 function App() {
   let test: Cfg | null = null;
@@ -9,15 +14,17 @@ function App() {
   try {
     test = createCfg(
       new Set(["a", "b", "c"]), // terminals
-      new Set(["A", "B", "C", "D", "E"]), // non-terminals
+      new Set(["S", "A", "B", "C"]), // non-terminals
       {
-        A: [["a", "B"], ["b", "C"], ["D"]],
-        B: [["b", "B"], ["c", "A"], ["a"]],
-        C: [["c", "C"], ["a", "B"], ["b"]],
-        D: [["a", "E"], ["b"]],
-        E: [["c", "A"], ["a"], ["b", "D"]],
+        S: [
+          ["A", "a"],
+          ["a", "B", "b"],
+        ],
+        A: [["b", "A", "b"]],
+        B: [["b", "B", "b"], ["A"], ["a"]],
+        C: [["a"], ["c"]],
       },
-      "A",
+      "S",
     );
   } catch (error) {
     err = error;
@@ -30,6 +37,8 @@ function App() {
       <pre>
         {test ? print(test) : err instanceof Error ? err.message : String(err)}
       </pre>
+      <p>Cfg after removing non generative symbols:</p>
+      <pre>{print(removeUselessSymbols(test!))}</pre>
     </>
   );
 }

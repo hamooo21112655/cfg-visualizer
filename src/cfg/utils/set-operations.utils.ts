@@ -8,6 +8,10 @@ export const isMember = <T>(a: T, A: Set<T>): boolean => [...A].includes(a);
 
 export const isEmptySet = <T>(A: Set<T>): boolean => A.size === 0;
 
-export const arrayAsSet = <T>(arr: T[]) => new Set([...arr]);
+export const areDisjoint = (
+  A: Set<any> | any[],
+  B: Set<any> | any[],
+): boolean => isEmptySet(intersection(new Set([...A]), new Set([...B])));
 
-export const setAsArray = <T>(set: Set<T>) => [...set];
+export const isSubsetOf = (A: Set<any> | any[], B: Set<any> | any[]): boolean =>
+  new Set([...B]).size === union(new Set([...A]), new Set([...B])).size;

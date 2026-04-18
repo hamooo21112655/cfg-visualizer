@@ -1,32 +1,39 @@
-import type { Cfg, Nonterminal, SymbolSequence, Terminal } from "../types/cfg";
-import { setAsArray } from "./set-operations.utils";
+import type { Cfg } from "../types/cfg";
+import { isMember, isSubsetOf, union } from "./set-operations.utils";
 
-/**********************BASIC OPERATIONS***************************************/
+/*****************************************************************************/
+/*                           BASIC OPERATIONS                                */
+/*****************************************************************************/
 
-export const getNonterminalsSorted = (cfg: Cfg): Nonterminal[] =>
-  setAsArray(cfg.nonTerminals).sort();
+export const getNonterminalsSorted = (cfg: Cfg): string[] =>
+  [...cfg.nonTerminals].sort();
 
-export const getTerminalsSorted = (cfg: Cfg): Terminal[] =>
-  setAsArray(cfg.terminals).sort();
+export const getTerminalsSorted = (cfg: Cfg): string[] =>
+  [...cfg.terminals].sort();
 
 export const getRightSideOfProductionForNonterminal = (
   cfg: Cfg,
-  nonTerminal: Nonterminal,
-): SymbolSequence[] => cfg.productionRules[nonTerminal];
+  nonTerminal: string,
+): string[][] => cfg.productionRules[nonTerminal];
 
 export const getNonterminalsOnTheLeftSideOfProductionRules = (
   cfg: Cfg,
-): Nonterminal[] => Object.keys(cfg.productionRules);
+): string[] => Object.keys(cfg.productionRules);
 
-const printRulesForOneNonterminal = (
-  cfg: Cfg,
-  nonTerminal: Nonterminal,
-): string =>
+export const isTerminal = (cfg: Cfg, symbol: string) => {
+  return cfg.terminals.has(symbol);
+};
+
+export const isNonterminal = (cfg: Cfg, symbol: string) => {
+  return cfg.nonTerminals.has(symbol);
+};
+
+const printRulesForOneNonterminal = (cfg: Cfg, nonTerminal: string): string =>
   `* ${nonTerminal} => ${getRightSideOfProductionForNonterminal(
     cfg,
     nonTerminal,
   )
-    .map((rightSide) => rightSide.join(""))
+    .map((rightSide: string[]) => rightSide.join(""))
     .join(" | ")}`;
 
 export const print = (cfg: Cfg): string =>
@@ -35,6 +42,110 @@ Nonterminals: [${getNonterminalsSorted(cfg).join(", ")}]
 Production rules: 
 ${getNonterminalsOnTheLeftSideOfProductionRules(cfg)
   .sort()
-  .map((nonTerminal) => printRulesForOneNonterminal(cfg, nonTerminal))
+  .map((nonTerminal: string) => printRulesForOneNonterminal(cfg, nonTerminal))
   .join("\n")}
 Start symbol: ${cfg.startSymbol}`;
+
+/*****************************************************************************/
+/*                       REMOVAL OF USELESS SYMBOLS                          */
+/*****************************************************************************/
+
+const initialListOfGeneratives = (cfg: Cfg): string[] =>
+  getNonterminalsOnTheLeftSideOfProductionRules(cfg).filter(
+    (terminal: string) =>
+      cfg.productionRules[terminal].some((rightSideOfProduction: string[]) =>
+        rightSideOfProduction.every((symbol: string) =>
+          isTerminal(cfg, symbol),
+        ),
+      ),
+  );
+
+export const findGenerativeSymbols = (cfg: Cfg): string[] => {
+  let oldSetOfGeneratives: Set<string> = new Set([]);
+  let newSetOfGeneratives: Set<string> = new Set(initialListOfGeneratives(cfg));
+
+  while (oldSetOfGeneratives.size !== newSetOfGeneratives.size) {
+    oldSetOfGeneratives = newSetOfGeneratives;
+    newSetOfGeneratives = new Set(
+      getNonterminalsOnTheLeftSideOfProductionRules(cfg).filter(
+        (terminal: string) =>
+          cfg.productionRules[terminal].some(
+            (rightSideOfProduction: string[]) =>
+              rightSideOfProduction.every(
+                (symbol: string) =>
+                  isTerminal(cfg, symbol) ||
+                  isMember(symbol, oldSetOfGeneratives),
+              ),
+          ),
+      ),
+    );
+  }
+  return [...newSetOfGeneratives];
+};
+
+export const findReachableSymbols = (cfg: Cfg): string[] => {
+  let oldSetOfReachables: Set<string> = new Set([]);
+  let newSetOfReachables: Set<string> = new Set([cfg.startSymbol]);
+
+  while (oldSetOfReachables.size !== newSetOfReachables.size) {
+    oldSetOfReachables = newSetOfReachables;
+    newSetOfReachables = union(
+      oldSetOfReachables,
+      new Set(
+        [...newSetOfReachables]
+          .map((symbol: string) => {
+            if (isTerminal(cfg, symbol)) return symbol;
+            else {
+              return (
+                getRightSideOfProductionForNonterminal(cfg, symbol) ?? []
+              ).flat();
+            }
+          })
+          .flat(),
+      ),
+    );
+  }
+
+  return [...newSetOfReachables];
+};
+
+export const removeUselessSymbols = (cfg: Cfg): any => {
+  const generatives: string[] = findGenerativeSymbols(cfg);
+
+  for (const nonTerminals of [...cfg.nonTerminals].filter(
+    (symbol: string) => !generatives.includes(symbol),
+  )) {
+    delete cfg.productionRules[nonTerminals];
+  }
+
+  generatives.forEach((nonTerminal: string) => {
+    cfg.productionRules[nonTerminal] = cfg.productionRules[nonTerminal].filter(
+      (rightSideOfProduction: string[]) => {
+        const extractNonTerminals: string[] = rightSideOfProduction.filter(
+          (symbol: string) => isNonterminal(cfg, symbol),
+        );
+        return isSubsetOf(extractNonTerminals, generatives);
+      },
+    );
+  });
+
+  cfg.nonTerminals = new Set(generatives);
+
+  const reachables: string[] = findReachableSymbols(cfg);
+
+  for (const nonTerminal of [...cfg.nonTerminals].filter(
+    (symbol: string) => !reachables.includes(symbol),
+  )) {
+    delete cfg.productionRules[nonTerminal];
+  }
+
+  cfg.nonTerminals = new Set(
+    reachables.filter((symbol: string) => isNonterminal(cfg, symbol)),
+  );
+
+  cfg.terminals = new Set(
+    reachables.filter((symbol: string) => isTerminal(cfg, symbol)),
+  );
+
+  return cfg;
+};

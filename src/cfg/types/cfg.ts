@@ -1,12 +1,8 @@
 export interface Cfg {
-  terminals: Set<Terminal>;
-  nonTerminals: Set<Nonterminal>;
-  productionRules: Record<Nonterminal, SymbolSequence[]>;
-  startSymbol?: Nonterminal;
+  terminals: Set<string>;
+  nonTerminals: Set<string>;
+  productionRules: Record<string, string[][]>;
+  startSymbol: string;
 }
-
-export type Terminal = string;
-export type Nonterminal = string;
-export type SymbolSequence = (Terminal | Nonterminal)[];
 
 export const EPSILON = "ɛ";

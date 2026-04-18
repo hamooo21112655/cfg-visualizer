@@ -8,3 +8,6 @@ export const validateCfg = (cfg: Cfg) => {
   }
   return cfg;
 };
+
+// dodati validaciju da samo simboli navedeni u skupu neterminalnih ili terminalnih simbolaS
+// smiju stajati na desnoj strani produkcija
