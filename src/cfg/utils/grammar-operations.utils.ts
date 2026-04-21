@@ -1,4 +1,4 @@
-import type { Cfg } from "../types/cfg";
+import { EPSILON, type Cfg } from "../types/cfg";
 import { isMember, isSubsetOf, union } from "./set-operations.utils";
 
 /*****************************************************************************/
@@ -66,17 +66,20 @@ export const findGenerativeSymbols = (cfg: Cfg): string[] => {
 
   while (oldSetOfGeneratives.size !== newSetOfGeneratives.size) {
     oldSetOfGeneratives = newSetOfGeneratives;
-    newSetOfGeneratives = new Set(
-      getNonterminalsOnTheLeftSideOfProductionRules(cfg).filter(
-        (terminal: string) =>
-          cfg.productionRules[terminal].some(
-            (rightSideOfProduction: string[]) =>
-              rightSideOfProduction.every(
-                (symbol: string) =>
-                  isTerminal(cfg, symbol) ||
-                  isMember(symbol, oldSetOfGeneratives),
-              ),
-          ),
+    newSetOfGeneratives = union(
+      newSetOfGeneratives,
+      new Set(
+        getNonterminalsOnTheLeftSideOfProductionRules(cfg).filter(
+          (terminal: string) =>
+            cfg.productionRules[terminal].some(
+              (rightSideOfProduction: string[]) =>
+                rightSideOfProduction.every(
+                  (symbol: string) =>
+                    isTerminal(cfg, symbol) ||
+                    isMember(symbol, oldSetOfGeneratives),
+                ),
+            ),
+        ),
       ),
     );
   }
@@ -148,4 +151,38 @@ export const removeUselessSymbols = (cfg: Cfg): any => {
   );
 
   return cfg;
+};
+
+/*****************************************************************************/
+/*                       REMOVAL OF EPSILON PRODUCTIONS                      */
+/*****************************************************************************/
+
+export const findEmptySymbols = (cfg: Cfg): string[] => {
+  let oldSetOfEmpties: Set<string> = new Set([]);
+  let newSetOfEmpties: Set<string> = new Set(
+    [...cfg.nonTerminals].filter((nonterminal: string) =>
+      cfg.productionRules[nonterminal].some(
+        (rightSideOfProduction: string[]) =>
+          rightSideOfProduction.length === 1 &&
+          rightSideOfProduction[0] === EPSILON,
+      ),
+    ),
+  );
+
+  while (oldSetOfEmpties.size !== newSetOfEmpties.size) {
+    oldSetOfEmpties = newSetOfEmpties;
+    newSetOfEmpties = union(
+      oldSetOfEmpties,
+      new Set(
+        [...cfg.nonTerminals].filter((nonterminal: string) =>
+          cfg.productionRules[nonterminal].some(
+            (rightSideOfProduction: string[]) =>
+              isSubsetOf(rightSideOfProduction, [...oldSetOfEmpties, EPSILON]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  return [...newSetOfEmpties];
 };

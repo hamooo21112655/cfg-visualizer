@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { Cfg } from "../cfg/types/cfg";
+import { EPSILON, type Cfg } from "../cfg/types/cfg";
 import {
+  findEmptySymbols,
   findGenerativeSymbols,
   findReachableSymbols,
 } from "../cfg/utils/grammar-operations.utils";
@@ -151,5 +152,127 @@ describe("grammarWithoutUselessSymbols", () => {
       S: [["a", "B", "b"]],
       B: [["b", "B", "b"], ["a"]],
     });
+  });
+});
+
+/*****************************************************************************/
+/*                            findEmptySymbols                               */
+/*****************************************************************************/
+
+describe("findEmptySymbols", () => {
+  it("should return nonterminals that directly produce ε", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [[EPSILON]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result.sort()).toEqual(["A", "S"].sort());
+  });
+
+  it("should handle no empty productions", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [["a"]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result).toEqual([]);
+  });
+
+  it("should propagate emptiness through multiple levels", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A", "B"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [["B"]],
+        B: [[EPSILON]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result.sort()).toEqual(["S", "A", "B"].sort());
+  });
+
+  it("should detect combinations of empty symbols", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A", "B"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [[EPSILON]],
+        B: [[EPSILON]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result.sort()).toEqual(["S", "A", "B"].sort());
+  });
+
+  it("should not mark symbol empty if one dependency is not empty", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A", "B"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [[EPSILON]],
+        B: [["b"]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result).toEqual(["A"]);
+  });
+
+  it("should handle self-referencing productions correctly", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S"]),
+      terminals: new Set(["a"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["S"], [EPSILON]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result).toEqual(["S"]);
+  });
+
+  it("should handle complex mixed grammar", () => {
+    const cfg: Cfg = {
+      nonTerminals: new Set(["S", "A", "B", "C"]),
+      terminals: new Set(["a", "b"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"], ["C"]],
+        A: [[EPSILON]],
+        B: [["b"]],
+        C: [["A"]],
+      },
+    };
+
+    const result = findEmptySymbols(cfg);
+
+    expect(result.sort()).toEqual(["S", "A", "C"].sort());
   });
 });
