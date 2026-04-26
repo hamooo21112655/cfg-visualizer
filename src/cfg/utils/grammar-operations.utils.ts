@@ -47,6 +47,11 @@ ${getNonterminalsOnTheLeftSideOfProductionRules(cfg)
   .join("\n")}
 Start symbol: ${cfg.startSymbol}`;
 
+const productionContainsOnlyEpsilon = (
+  rightSideOfProduction: string[],
+): boolean =>
+  rightSideOfProduction.length === 1 && rightSideOfProduction[0] === EPSILON;
+
 /*****************************************************************************/
 /*                       REMOVAL OF USELESS SYMBOLS                          */
 /*****************************************************************************/
@@ -202,11 +207,10 @@ export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
     cfgWithoutEpsilonProductions.productionRules[nonTerminal] = [];
     cfg.productionRules[nonTerminal].forEach(
       (rightSideOfProduction: string[]) => {
-        if (
-          rightSideOfProduction.length === 1 &&
-          rightSideOfProduction[0] === EPSILON
-        )
+        if (productionContainsOnlyEpsilon(rightSideOfProduction)) {
           return;
+        }
+
         const nullSymbolPositions: (number | null)[] = rightSideOfProduction
           .map((symbol: string, index: number) =>
             emptySymbols.includes(symbol) ? index : null,
@@ -236,7 +240,7 @@ export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
     }
   });
 
-  if (emptySymbols.includes(cfgWithoutEpsilonProductions.startSymbol))
+  if (isMember(cfg.startSymbol, emptySymbols))
     cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol] = [
       ...cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol],
       [EPSILON],
