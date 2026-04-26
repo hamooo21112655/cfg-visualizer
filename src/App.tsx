@@ -1,9 +1,10 @@
 import { createCfg } from "./cfg/cfg.service";
-import type { Cfg } from "./cfg/types/cfg";
+import { EPSILON, type Cfg } from "./cfg/types/cfg";
 import {
   findGenerativeSymbols,
   findReachableSymbols,
   print,
+  removeEpsilonProductions,
   removeUselessSymbols,
 } from "./cfg/utils/grammar-operations.utils";
 
@@ -14,15 +15,14 @@ function App() {
   try {
     test = createCfg(
       new Set(["a", "b", "c"]), // terminals
-      new Set(["S", "A", "B", "C"]), // non-terminals
+      new Set(["S", "A", "B", "C", "D", "E"]), // non-terminals
       {
-        S: [
-          ["A", "a"],
-          ["a", "B", "b"],
-        ],
-        A: [["b", "A", "b"]],
-        B: [["b", "B", "b"], ["A"], ["a"]],
-        C: [["a"], ["c"]],
+        S: [["A", "B", "C", "D"], ["E"]],
+        A: [["a"], [EPSILON]],
+        B: [["b"], ["c"]],
+        C: [["b"], [EPSILON]],
+        D: [["a"], ["b"]],
+        E: [["a"], ["b"], [EPSILON]],
       },
       "S",
     );
@@ -33,12 +33,18 @@ function App() {
   return (
     <>
       <h1>Context-free grammar visualizer</h1>
-      <p>Cfg given by:</p>
+      <p>Cfg before removal of empty prods:</p>
       <pre>
         {test ? print(test) : err instanceof Error ? err.message : String(err)}
       </pre>
-      <p>Cfg after removing non generative symbols:</p>
-      <pre>{print(removeUselessSymbols(test!))}</pre>
+      <p>Cfg after removal of empty prods:</p>
+      <pre>
+        {test
+          ? print(removeEpsilonProductions(test))
+          : err instanceof Error
+            ? err.message
+            : String(err)}
+      </pre>
     </>
   );
 }

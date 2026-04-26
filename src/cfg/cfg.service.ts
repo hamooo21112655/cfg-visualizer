@@ -1,5 +1,8 @@
 import type { Cfg } from "./types/cfg";
-import { removeUselessSymbols } from "./utils/grammar-operations.utils";
+import {
+  removeEpsilonProductions,
+  removeUselessSymbols,
+} from "./utils/grammar-operations.utils";
 import { validateCfg } from "./validations/create-cfg.validation";
 
 export const createCfg = (
@@ -29,4 +32,17 @@ export const grammarWithoutUselessSymbols = (cfg: Cfg): Cfg => {
 
   const grammarWithoutUselessSymbols = removeUselessSymbols(grammarValidated);
   return grammarWithoutUselessSymbols;
+};
+
+export const grammarWithoutEpsilonProductions = (cfg: Cfg): Cfg => {
+  const grammarValidated = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    cfg.productionRules,
+    cfg.startSymbol,
+  );
+
+  const grammarWithoutEpsilonProductions =
+    removeEpsilonProductions(grammarValidated);
+  return grammarWithoutEpsilonProductions;
 };

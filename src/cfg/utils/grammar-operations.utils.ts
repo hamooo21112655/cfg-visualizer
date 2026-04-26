@@ -1,5 +1,6 @@
+import { createCfg } from "../cfg.service";
 import { EPSILON, type Cfg } from "../types/cfg";
-import { isMember, isSubsetOf, union } from "./set-operations.utils";
+import { isMember, isSubsetOf, powerSet, union } from "./set-operations.utils";
 
 /*****************************************************************************/
 /*                           BASIC OPERATIONS                                */
@@ -185,4 +186,60 @@ export const findEmptySymbols = (cfg: Cfg): string[] => {
   }
 
   return [...newSetOfEmpties];
+};
+
+export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
+  const emptySymbols: string[] = findEmptySymbols(cfg);
+
+  const cfgWithoutEpsilonProductions: Cfg = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    {},
+    cfg.startSymbol,
+  );
+
+  cfg.nonTerminals.forEach((nonTerminal: string) => {
+    cfgWithoutEpsilonProductions.productionRules[nonTerminal] = [];
+    cfg.productionRules[nonTerminal].forEach(
+      (rightSideOfProduction: string[]) => {
+        if (
+          rightSideOfProduction.length === 1 &&
+          rightSideOfProduction[0] === EPSILON
+        )
+          return;
+        const nullSymbolPositions: (number | null)[] = rightSideOfProduction
+          .map((symbol: string, index: number) =>
+            emptySymbols.includes(symbol) ? index : null,
+          )
+          .filter((indexOrNull: number | null) => indexOrNull !== null);
+
+        const positionCombinations = powerSet(nullSymbolPositions);
+
+        positionCombinations.forEach((combination: number[]) => {
+          const newProduction: string[] = rightSideOfProduction.filter(
+            (_: string, index: number) => !combination.includes(index),
+          );
+
+          if (newProduction.length === 0) return;
+
+          cfgWithoutEpsilonProductions.productionRules[nonTerminal] = [
+            ...cfgWithoutEpsilonProductions.productionRules[nonTerminal],
+            newProduction,
+          ];
+        });
+      },
+    );
+    if (
+      cfgWithoutEpsilonProductions.productionRules[nonTerminal].length === 0
+    ) {
+      delete cfgWithoutEpsilonProductions.productionRules[nonTerminal];
+    }
+  });
+
+  if (emptySymbols.includes(cfgWithoutEpsilonProductions.startSymbol))
+    cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol] = [
+      ...cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol],
+      [EPSILON],
+    ];
+  return cfgWithoutEpsilonProductions;
 };

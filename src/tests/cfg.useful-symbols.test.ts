@@ -5,7 +5,10 @@ import {
   findGenerativeSymbols,
   findReachableSymbols,
 } from "../cfg/utils/grammar-operations.utils";
-import { grammarWithoutUselessSymbols } from "../cfg/cfg.service";
+import {
+  grammarWithoutEpsilonProductions,
+  grammarWithoutUselessSymbols,
+} from "../cfg/cfg.service";
 
 /*****************************************************************************/
 /*                                TEST CFGs                                  */
@@ -274,5 +277,116 @@ describe("findEmptySymbols", () => {
     const result = findEmptySymbols(cfg);
 
     expect(result.sort()).toEqual(["S", "A", "C"].sort());
+  });
+});
+
+/*****************************************************************************/
+/*                     grammarWithoutEpsilonProductions                      */
+/*****************************************************************************/
+
+describe("grammarWithoutEpsilonProductions", () => {
+  it("should remove direct epsilon productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [[EPSILON], ["a"]],
+      },
+    };
+
+    const result = grammarWithoutEpsilonProductions(cfg);
+
+    expect(result.productionRules["A"]).toEqual([["a"]]);
+  });
+
+  it("should preserve grammar metadata", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [["a"]],
+      },
+    };
+
+    const result = grammarWithoutEpsilonProductions(cfg);
+
+    expect(result.terminals).toEqual(new Set(["a", "b"]));
+    expect(result.nonTerminals).toEqual(new Set(["S", "A"]));
+    expect(result.startSymbol).toBe("S");
+  });
+
+  it("should create alternative productions when nullable symbol appears", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "a"]],
+        A: [[EPSILON]],
+      },
+    };
+
+    const result = grammarWithoutEpsilonProductions(cfg);
+
+    expect(result.productionRules["S"]).toEqual(
+      expect.arrayContaining([["A", "a"], ["a"]]),
+    );
+  });
+
+  it("should handle chain nullable symbols", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [[EPSILON]],
+        B: [["a"], [EPSILON]],
+      },
+    };
+
+    const result = grammarWithoutEpsilonProductions(cfg);
+
+    expect(result.productionRules["S"]).toEqual(
+      expect.arrayContaining([["A", "B"], ["A"], ["B"]]),
+    );
+  });
+
+  it("should not mutate original grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [[EPSILON], ["a"]],
+      },
+    };
+
+    const original = structuredClone(cfg);
+
+    grammarWithoutEpsilonProductions(cfg);
+
+    expect(cfg).toEqual(original);
+  });
+
+  it("should return same grammar when no epsilon productions exist", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [["a"]],
+      },
+    };
+
+    const result = grammarWithoutEpsilonProductions(cfg);
+
+    expect(result.productionRules).toEqual(cfg.productionRules);
   });
 });
