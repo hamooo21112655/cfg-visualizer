@@ -6,45 +6,37 @@ import {
   print,
   removeEpsilonProductions,
   removeUselessSymbols,
+  unit,
 } from "./cfg/utils/grammar-operations.utils";
 
 function App() {
-  let test: Cfg | null = null;
-  let err: unknown = null;
+  const cfg: Cfg = {
+    terminals: new Set(["w", "1", "2"]),
+    nonTerminals: new Set(["A", "B", "C", "D"]),
+    startSymbol: "A",
+    productionRules: {
+      A: [["B"]],
+      B: [["C"], ["w", "1"]],
+      C: [["D"]],
+      D: [["w", "2"]],
+    },
+  };
 
-  try {
-    test = createCfg(
-      new Set(["a", "b", "c"]), // terminals
-      new Set(["S", "A", "B", "C", "D", "E"]), // non-terminals
-      {
-        S: [["A", "B", "C", "D"], ["E"]],
-        A: [["a"], [EPSILON]],
-        B: [["b"], ["c"]],
-        C: [["b"], [EPSILON]],
-        D: [["a"], ["b"]],
-        E: [["a"], ["b"], [EPSILON]],
-      },
-      "S",
-    );
-  } catch (error) {
-    err = error;
-  }
+  console.log(unit(cfg, "A"));
 
   return (
     <>
       <h1>Context-free grammar visualizer</h1>
-      <p>Cfg before removal of empty prods:</p>
-      <pre>
-        {test ? print(test) : err instanceof Error ? err.message : String(err)}
-      </pre>
-      <p>Cfg after removal of empty prods:</p>
+      <p>Unit(A):</p>
+      <pre>{unit(cfg, "A")}</pre>
+      {/* <p>Cfg after removal of empty prods:</p>
       <pre>
         {test
           ? print(removeEpsilonProductions(test))
           : err instanceof Error
             ? err.message
             : String(err)}
-      </pre>
+      </pre> */}
     </>
   );
 }

@@ -4,6 +4,7 @@ import {
   findEmptySymbols,
   findGenerativeSymbols,
   findReachableSymbols,
+  unit,
 } from "../cfg/utils/grammar-operations.utils";
 import {
   grammarWithoutEpsilonProductions,
@@ -388,5 +389,29 @@ describe("grammarWithoutEpsilonProductions", () => {
     const result = grammarWithoutEpsilonProductions(cfg);
 
     expect(result.productionRules).toEqual(cfg.productionRules);
+  });
+});
+
+/*****************************************************************************/
+/*                                  unit                                     */
+/*****************************************************************************/
+
+describe("test unit function", () => {
+  it("should remove direct epsilon productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["w", "1", "2"]),
+      nonTerminals: new Set(["A", "B", "C", "D"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["C"], ["w", "1"]],
+        C: [["D"]],
+        D: [["w", "2"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(result).toEqual(["A", "B", "C", "D"]);
   });
 });

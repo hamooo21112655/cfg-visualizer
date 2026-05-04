@@ -247,3 +247,31 @@ export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
     ];
   return cfgWithoutEpsilonProductions;
 };
+
+/*****************************************************************************/
+/*                       REMOVAL OF UNIT PRODUCTIONS                         */
+/*****************************************************************************/
+
+export const unit = (cfg: Cfg, symbol: string): any => {
+  let oldSetOfUnits = new Set<string>();
+  let newSetOfUnits = new Set<string>([symbol]);
+
+  while (oldSetOfUnits.size !== newSetOfUnits.size) {
+    oldSetOfUnits = new Set<string>([...newSetOfUnits]);
+    newSetOfUnits = union(
+      oldSetOfUnits,
+      [...oldSetOfUnits]
+        .map((unitSymbol: string) =>
+          cfg.productionRules[unitSymbol]
+            .filter(
+              (rightSideOfProduction: string[]) =>
+                rightSideOfProduction.length === 1 &&
+                isNonterminal(cfg, rightSideOfProduction[0]),
+            )
+            .flat(),
+        )
+        .flat(),
+    );
+  }
+  return [...newSetOfUnits];
+};

@@ -1,7 +1,7 @@
 export const intersection = <T>(A: Set<T> | T[], B: Set<T> | T[]): Set<T> =>
   new Set<T>([...A].filter((member) => [...B].includes(member)));
 
-export const union = <T>(A: Set<T>, B: Set<T>): Set<T> =>
+export const union = <T>(A: Set<T> | T[], B: Set<T> | T[]): Set<T> =>
   new Set<T>([...A, ...B]);
 
 export const isMember = <T>(a: T, A: Set<T> | T[]): boolean =>
