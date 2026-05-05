@@ -396,15 +396,15 @@ describe("grammarWithoutEpsilonProductions", () => {
 /*                                  unit                                     */
 /*****************************************************************************/
 
-describe("test unit function", () => {
-  it("should remove direct epsilon productions", () => {
+describe("unit()", () => {
+  it("should follow a simple chain of unit productions", () => {
     const cfg: Cfg = {
       terminals: new Set(["w", "1", "2"]),
       nonTerminals: new Set(["A", "B", "C", "D"]),
       startSymbol: "A",
       productionRules: {
         A: [["B"]],
-        B: [["C"], ["w", "1"]],
+        B: [["C"]],
         C: [["D"]],
         D: [["w", "2"]],
       },
@@ -412,6 +412,103 @@ describe("test unit function", () => {
 
     const result = unit(cfg, "A");
 
-    expect(result).toEqual(["A", "B", "C", "D"]);
+    expect(new Set(result)).toEqual(new Set(["A", "B", "C", "D"]));
+  });
+
+  it("should stop when non-unit production is reached", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["a"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(new Set(result)).toEqual(new Set(["A", "B"]));
+  });
+
+  it("should handle branching unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B", "C"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"], ["C"]],
+        B: [["a"]],
+        C: [["a"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(new Set(result)).toEqual(new Set(["A", "B", "C"]));
+  });
+
+  it("should handle cycles without infinite loop", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["A"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(new Set(result)).toEqual(new Set(["A", "B"]));
+  });
+
+  it("should return only the symbol if no unit productions exist", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["a"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(result).toEqual(["A"]);
+  });
+
+  it("should ignore non-unit productions mixed with unit ones", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"], ["a"]],
+        B: [["b"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(new Set(result)).toEqual(new Set(["A", "B"]));
+  });
+
+  it("should not include unreachable nonterminals", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B", "C"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["a"]],
+        C: [["A"]],
+      },
+    };
+
+    const result = unit(cfg, "A");
+
+    expect(new Set(result)).toEqual(new Set(["A", "B"]));
   });
 });
