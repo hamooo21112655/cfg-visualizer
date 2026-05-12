@@ -1,6 +1,7 @@
 import type { Cfg } from "./types/cfg";
 import {
   removeEpsilonProductions,
+  removeUnitProductions,
   removeUselessSymbols,
 } from "./utils/grammar-operations.utils";
 import { validateCfg } from "./validations/create-cfg.validation";
@@ -45,4 +46,19 @@ export const grammarWithoutEpsilonProductions = (cfg: Cfg): Cfg => {
   const grammarWithoutEpsilonProductions =
     removeEpsilonProductions(grammarValidated);
   return grammarWithoutEpsilonProductions;
+};
+
+export const grammarWithoutUnitProductions = (cfg: Cfg): Cfg => {
+  const grammarValidated = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    cfg.productionRules,
+    cfg.startSymbol,
+  );
+
+  // validate once again to remove potential duplicates from production rules
+  const grammarWithoutUnitProductions = validateCfg(
+    removeUnitProductions(grammarValidated),
+  );
+  return grammarWithoutUnitProductions;
 };

@@ -1,6 +1,12 @@
 import { createCfg } from "../cfg.service";
 import { EPSILON, type Cfg } from "../types/cfg";
-import { isMember, isSubsetOf, powerSet, union } from "./set-operations.utils";
+import {
+  areDisjoint,
+  isMember,
+  isSubsetOf,
+  powerSet,
+  union,
+} from "./set-operations.utils";
 
 /*****************************************************************************/
 /*                           BASIC OPERATIONS                                */
@@ -27,6 +33,16 @@ export const isTerminal = (cfg: Cfg, symbol: string) => {
 
 export const isNonterminal = (cfg: Cfg, symbol: string) => {
   return cfg.nonTerminals.has(symbol);
+};
+
+export const removeDuplicatesOnRightSideOfProduction = (
+  rightSide: string[][],
+): string[][] => {
+  const productionsStringified: Set<string> = new Set(
+    rightSide ? rightSide.map((prod: string[]) => JSON.stringify(prod)) : [],
+  );
+
+  return [...productionsStringified].map((prod: string) => JSON.parse(prod));
 };
 
 const printRulesForOneNonterminal = (cfg: Cfg, nonTerminal: string): string =>
@@ -252,7 +268,7 @@ export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
 /*                       REMOVAL OF UNIT PRODUCTIONS                         */
 /*****************************************************************************/
 
-export const unit = (cfg: Cfg, symbol: string): any => {
+export const unit = (cfg: Cfg, symbol: string): string[] => {
   let oldSetOfUnits = new Set<string>();
   let newSetOfUnits = new Set<string>([symbol]);
 
@@ -275,3 +291,31 @@ export const unit = (cfg: Cfg, symbol: string): any => {
   }
   return [...newSetOfUnits];
 };
+
+export const removeUnitProductions = (cfg: Cfg): Cfg => {
+  const cfgWithoutUnitProductions: Cfg = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    {},
+    cfg.startSymbol,
+  );
+
+  cfg.nonTerminals.forEach((symbol: string) => {
+    const unitNonterminals: string[] = unit(cfg, symbol);
+
+    const rightSideOfUnits: string[][] = unitNonterminals
+      .map((symbolOnLeft1: string) =>
+        getRightSideOfProductionForNonterminal(cfg, symbolOnLeft1).filter(
+          (rightSideOfProd: string[]) =>
+            rightSideOfProd.length !== 1 || isTerminal(cfg, rightSideOfProd[0]),
+        ),
+      )
+      .flat();
+
+    cfgWithoutUnitProductions.productionRules[symbol] = [...rightSideOfUnits];
+  });
+
+  return cfgWithoutUnitProductions;
+};
+
+// nesta ne valja u funkciji koja izbacuje duplikate na desnoj strani produkcije

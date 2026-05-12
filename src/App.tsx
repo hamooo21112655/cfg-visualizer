@@ -1,34 +1,38 @@
-import { createCfg } from "./cfg/cfg.service";
+import { createCfg, grammarWithoutUnitProductions } from "./cfg/cfg.service";
 import { EPSILON, type Cfg } from "./cfg/types/cfg";
 import {
   findGenerativeSymbols,
   findReachableSymbols,
   print,
   removeEpsilonProductions,
+  removeUnitProductions,
   removeUselessSymbols,
   unit,
 } from "./cfg/utils/grammar-operations.utils";
 
 function App() {
   const cfg: Cfg = {
-    terminals: new Set(["w", "1", "2"]),
+    terminals: new Set(["w", "1", "2", "t"]),
     nonTerminals: new Set(["A", "B", "C", "D"]),
     startSymbol: "A",
     productionRules: {
       A: [["B"]],
-      B: [["C"], ["w", "1"]],
+      B: [["C"], ["t"]],
       C: [["D"]],
-      D: [["w", "2"]],
+      D: [
+        ["w", "2"],
+        ["w", "1"],
+      ],
     },
   };
 
-  console.log(unit(cfg, "A"));
+  // console.log(grammarWithoutUnitProductions(cfg).productionRules);
 
   return (
     <>
       <h1>Context-free grammar visualizer</h1>
       <p>Unit(A):</p>
-      <pre>{unit(cfg, "A")}</pre>
+      <pre>{print(grammarWithoutUnitProductions(cfg))}</pre>
       {/* <p>Cfg after removal of empty prods:</p>
       <pre>
         {test

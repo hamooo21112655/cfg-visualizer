@@ -8,6 +8,7 @@ import {
 } from "../cfg/utils/grammar-operations.utils";
 import {
   grammarWithoutEpsilonProductions,
+  grammarWithoutUnitProductions,
   grammarWithoutUselessSymbols,
 } from "../cfg/cfg.service";
 
@@ -510,5 +511,162 @@ describe("unit()", () => {
     const result = unit(cfg, "A");
 
     expect(new Set(result)).toEqual(new Set(["A", "B"]));
+  });
+});
+
+/*****************************************************************************/
+/*                       grammarWithoutUnitProductions                       */
+/*****************************************************************************/
+
+describe("grammarWithoutUnitProductions()", () => {
+  it("should remove a simple unit production", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["a"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules).toEqual({
+      A: [["a"]],
+      B: [["a"]],
+    });
+  });
+
+  it("should remove chains of unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B", "C"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["C"]],
+        C: [["a"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules).toEqual({
+      A: [["a"]],
+      B: [["a"]],
+      C: [["a"]],
+    });
+  });
+
+  it("should preserve non-unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"], ["a"]],
+        B: [["b"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules["A"]).toEqual(
+      expect.arrayContaining([["a"], ["b"]]),
+    );
+
+    expect(result.productionRules["A"]).not.toContainEqual(["B"]);
+  });
+
+  it("should handle branching unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"], ["B"]],
+        A: [["a"]],
+        B: [["b"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules["S"]).toEqual(
+      expect.arrayContaining([["a"], ["b"]]),
+    );
+
+    expect(result.productionRules["S"]).not.toContainEqual(["A"]);
+    expect(result.productionRules["S"]).not.toContainEqual(["B"]);
+  });
+
+  it("should remove duplicate productions after elimination", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"], ["a"]],
+        B: [["a"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules["A"]).toEqual([["a"]]);
+  });
+
+  it("should handle cyclic unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["A"], ["a"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules).toEqual({
+      A: [["a"]],
+      B: [["a"]],
+    });
+  });
+
+  it("should leave grammar unchanged if no unit productions exist", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["a"]],
+        B: [["b"]],
+      },
+    };
+
+    const result = grammarWithoutUnitProductions(cfg);
+
+    expect(result.productionRules).toEqual(cfg.productionRules);
+  });
+
+  it("should not mutate the original grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["A", "B"]),
+      startSymbol: "A",
+      productionRules: {
+        A: [["B"]],
+        B: [["a"]],
+      },
+    };
+
+    const original = structuredClone(cfg);
+
+    grammarWithoutUnitProductions(cfg);
+
+    expect(cfg).toEqual(original);
   });
 });
