@@ -1,5 +1,6 @@
 import type { Cfg } from "./types/cfg";
 import {
+  reduceToChomskyNormalForm,
   removeEpsilonProductions,
   removeUnitProductions,
   removeUselessSymbols,
@@ -13,10 +14,10 @@ export const createCfg = (
   startSymbol: string,
 ): Cfg => {
   const cfg: Cfg = {
-    terminals,
-    nonTerminals,
+    terminals: new Set(terminals),
+    nonTerminals: new Set(nonTerminals),
     startSymbol,
-    productionRules,
+    productionRules: structuredClone(productionRules),
   };
 
   const cfgValidated: Cfg = validateCfg(cfg);
@@ -58,7 +59,26 @@ export const grammarWithoutUnitProductions = (cfg: Cfg): Cfg => {
 
   // validate once again to remove potential duplicates from production rules
   const grammarWithoutUnitProductions = validateCfg(
-    removeUnitProductions(grammarValidated),
+    grammarWithoutUselessSymbols(removeUnitProductions(grammarValidated)),
   );
+
   return grammarWithoutUnitProductions;
+};
+
+export const grammarReducedToCNF = (cfg: Cfg): Cfg => {
+  const grammarValidated = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    cfg.productionRules,
+    cfg.startSymbol,
+  );
+
+  const removeUselessSymbols = grammarWithoutUselessSymbols(grammarValidated);
+  const removeEpsilonProductions =
+    grammarWithoutEpsilonProductions(removeUselessSymbols);
+  const removeUnitProductions = grammarWithoutUnitProductions(
+    removeEpsilonProductions,
+  );
+
+  return reduceToChomskyNormalForm(removeUnitProductions);
 };

@@ -5,8 +5,13 @@ import {
   findGenerativeSymbols,
   findReachableSymbols,
   unit,
+  print,
+  removeEpsilonProductions,
+  removeUnitProductions,
+  removeUselessSymbols,
 } from "../cfg/utils/grammar-operations.utils";
 import {
+  grammarReducedToCNF,
   grammarWithoutEpsilonProductions,
   grammarWithoutUnitProductions,
   grammarWithoutUselessSymbols,
@@ -534,7 +539,6 @@ describe("grammarWithoutUnitProductions()", () => {
 
     expect(result.productionRules).toEqual({
       A: [["a"]],
-      B: [["a"]],
     });
   });
 
@@ -554,8 +558,6 @@ describe("grammarWithoutUnitProductions()", () => {
 
     expect(result.productionRules).toEqual({
       A: [["a"]],
-      B: [["a"]],
-      C: [["a"]],
     });
   });
 
@@ -632,7 +634,6 @@ describe("grammarWithoutUnitProductions()", () => {
 
     expect(result.productionRules).toEqual({
       A: [["a"]],
-      B: [["a"]],
     });
   });
 
@@ -642,7 +643,7 @@ describe("grammarWithoutUnitProductions()", () => {
       nonTerminals: new Set(["A", "B"]),
       startSymbol: "A",
       productionRules: {
-        A: [["a"]],
+        A: [["a"], ["b", "B"]],
         B: [["b"]],
       },
     };
@@ -666,6 +667,157 @@ describe("grammarWithoutUnitProductions()", () => {
     const original = structuredClone(cfg);
 
     grammarWithoutUnitProductions(cfg);
+
+    expect(cfg).toEqual(original);
+  });
+});
+
+/*****************************************************************************/
+/*                          grammarReducedToCNF                              */
+/*****************************************************************************/
+
+describe("grammarReducedToCNF()", () => {
+  it("should replace terminals in long productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "b"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    expect(Object.values(result.productionRules).flat()).toContainEqual([
+      "T_0",
+      "T_1",
+    ]);
+
+    expect(result.productionRules["T_0"]).toEqual([["a"]]);
+    expect(result.productionRules["T_1"]).toEqual([["b"]]);
+  });
+
+  it("should split productions longer than 2 symbols", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "b", "c"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    const allProductions = Object.values(result.productionRules).flat();
+
+    allProductions.forEach((production: string[]) => {
+      expect(production.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  it("should remove unit productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A"]],
+        A: [["B"]],
+        B: [["a"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    Object.values(result.productionRules)
+      .flat()
+      .forEach((production: string[]) => {
+        const isUnitProduction =
+          production.length === 1 && result.nonTerminals.has(production[0]);
+
+        expect(isUnitProduction).toBe(false);
+      });
+  });
+
+  it("should remove useless symbols", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a"]],
+        A: [["B"]],
+        B: [["A"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    expect(result.nonTerminals.has("A")).toBe(false);
+    expect(result.nonTerminals.has("B")).toBe(false);
+  });
+
+  it("should preserve already valid CNF grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [["a"]],
+        B: [["b"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    expect(result.productionRules).toEqual(cfg.productionRules);
+  });
+
+  it("should ensure every production satisfies CNF", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "b", "c"], ["a"]],
+        A: [[EPSILON], ["a"]],
+      },
+    };
+
+    const result = grammarReducedToCNF(cfg);
+
+    Object.values(result.productionRules)
+      .flat()
+      .forEach((production: string[]) => {
+        const isTerminalProduction =
+          production.length === 1 && result.terminals.has(production[0]);
+
+        const isBinaryNonterminalProduction =
+          production.length === 2 &&
+          production.every((symbol: string) => result.nonTerminals.has(symbol));
+
+        expect(isTerminalProduction || isBinaryNonterminalProduction).toBe(
+          true,
+        );
+      });
+  });
+
+  it("should not mutate the original grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "b", "a"]],
+      },
+    };
+
+    const original = structuredClone(cfg);
+
+    grammarReducedToCNF(cfg);
 
     expect(cfg).toEqual(original);
   });

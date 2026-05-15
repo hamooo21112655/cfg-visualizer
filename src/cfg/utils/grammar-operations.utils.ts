@@ -292,6 +292,8 @@ export const unit = (cfg: Cfg, symbol: string): string[] => {
   return [...newSetOfUnits];
 };
 
+// ne zaboraviti u servisu jos jednom pozvati funkciju za uklanjanje beskorisnih simbola nakon sto se uklone jedinicne produkcije
+
 export const removeUnitProductions = (cfg: Cfg): Cfg => {
   const cfgWithoutUnitProductions: Cfg = createCfg(
     cfg.terminals,
@@ -307,7 +309,9 @@ export const removeUnitProductions = (cfg: Cfg): Cfg => {
       .map((symbolOnLeft1: string) =>
         getRightSideOfProductionForNonterminal(cfg, symbolOnLeft1).filter(
           (rightSideOfProd: string[]) =>
-            rightSideOfProd.length !== 1 || isTerminal(cfg, rightSideOfProd[0]),
+            rightSideOfProd.length !== 1 ||
+            isTerminal(cfg, rightSideOfProd[0]) ||
+            rightSideOfProd[0] === EPSILON,
         ),
       )
       .flat();
@@ -318,4 +322,73 @@ export const removeUnitProductions = (cfg: Cfg): Cfg => {
   return cfgWithoutUnitProductions;
 };
 
-// nesta ne valja u funkciji koja izbacuje duplikate na desnoj strani produkcije
+/*****************************************************************************/
+/*                    REDUCTION TO CHOMSKY NORMAL FORM                       */
+/*****************************************************************************/
+
+export const reduceToChomskyNormalForm = (cfg: Cfg): Cfg => {
+  const reducedCfg = createCfg(
+    cfg.terminals,
+    cfg.nonTerminals,
+    cfg.productionRules,
+    cfg.startSymbol,
+  );
+  let index = 0;
+
+  getNonterminalsOnTheLeftSideOfProductionRules(cfg).forEach(
+    (symbol: string) => {
+      cfg.productionRules[symbol]
+        .filter((prod: string[]) => prod.length > 1)
+        .forEach((rightSideOfProd: string[], prodIndex: number) => {
+          reducedCfg.productionRules[symbol][prodIndex] = rightSideOfProd.map(
+            (prodSymbol: string) => {
+              const replacementSymbol = `T_${index++}`;
+              if (isTerminal(cfg, prodSymbol)) {
+                reducedCfg.nonTerminals.add(replacementSymbol);
+                reducedCfg.productionRules[replacementSymbol] = [[prodSymbol]];
+                return replacementSymbol;
+              } else {
+                return prodSymbol;
+              }
+            },
+          );
+        });
+    },
+  );
+
+  const finalReducedCfg = createCfg(
+    reducedCfg.terminals,
+    reducedCfg.nonTerminals,
+    reducedCfg.productionRules,
+    reducedCfg.startSymbol,
+  );
+
+  getNonterminalsOnTheLeftSideOfProductionRules(reducedCfg).forEach(
+    (symbol: string) => {
+      reducedCfg.productionRules[symbol]
+        .filter((prod: string[]) => prod.length > 2)
+        .forEach((rightSideOfProd: string[], prodIndex: number) => {
+          let lengthyProd = [...rightSideOfProd];
+          while (lengthyProd.length > 2) {
+            const [firstSymbol, secondSymbol, ...restOfTheSymbols] =
+              lengthyProd;
+
+            const replacementSymbol = `T_${index++}`;
+
+            finalReducedCfg.nonTerminals.add(replacementSymbol);
+            finalReducedCfg.productionRules[replacementSymbol] = [
+              [firstSymbol, secondSymbol],
+            ];
+            lengthyProd = [replacementSymbol, ...restOfTheSymbols];
+          }
+
+          finalReducedCfg.productionRules[symbol][prodIndex] = [
+            `T_${index - 1}`,
+            rightSideOfProd[rightSideOfProd.length - 1],
+          ];
+        });
+    },
+  );
+
+  return finalReducedCfg;
+};

@@ -4,6 +4,7 @@ import {
   findGenerativeSymbols,
   findReachableSymbols,
   print,
+  reduceToChomskyNormalForm,
   removeEpsilonProductions,
   removeUnitProductions,
   removeUselessSymbols,
@@ -12,17 +13,12 @@ import {
 
 function App() {
   const cfg: Cfg = {
-    terminals: new Set(["w", "1", "2", "t"]),
-    nonTerminals: new Set(["A", "B", "C", "D"]),
-    startSymbol: "A",
+    terminals: new Set(["a"]),
+    nonTerminals: new Set(["S", "A"]),
+    startSymbol: "S",
     productionRules: {
-      A: [["B"]],
-      B: [["C"], ["t"]],
-      C: [["D"]],
-      D: [
-        ["w", "2"],
-        ["w", "1"],
-      ],
+      S: [["a"]],
+      A: [["a"]],
     },
   };
 
@@ -31,8 +27,10 @@ function App() {
   return (
     <>
       <h1>Context-free grammar visualizer</h1>
-      <p>Unit(A):</p>
-      <pre>{print(grammarWithoutUnitProductions(cfg))}</pre>
+      <p>Before reduction to chomsky:</p>
+      <pre>{print(cfg)}</pre>
+      <p>After reduction to chomsky:</p>
+      <pre>{print(removeUnitProductions(cfg))}</pre>
       {/* <p>Cfg after removal of empty prods:</p>
       <pre>
         {test
