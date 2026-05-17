@@ -1,12 +1,6 @@
 import { createCfg } from "../cfg.service";
 import { EPSILON, type Cfg } from "../types/cfg";
-import {
-  areDisjoint,
-  isMember,
-  isSubsetOf,
-  powerSet,
-  union,
-} from "./set-operations.utils";
+import { isMember, isSubsetOf, powerSet, union } from "./set-operations.utils";
 
 /*****************************************************************************/
 /*                           BASIC OPERATIONS                                */
@@ -27,13 +21,13 @@ export const getNonterminalsOnTheLeftSideOfProductionRules = (
   cfg: Cfg,
 ): string[] => Object.keys(cfg.productionRules);
 
-export const isTerminal = (cfg: Cfg, symbol: string) => {
-  return cfg.terminals.has(symbol);
-};
+export const isTerminal = (cfg: Cfg, symbol: string) =>
+  cfg.terminals.has(symbol);
 
-export const isNonterminal = (cfg: Cfg, symbol: string) => {
-  return cfg.nonTerminals.has(symbol);
-};
+export const isNonterminal = (cfg: Cfg, symbol: string) =>
+  cfg.nonTerminals.has(symbol);
+
+const isEpsilon = (symbol: string): boolean => symbol === EPSILON;
 
 export const removeDuplicatesOnRightSideOfProduction = (
   rightSide: string[][],
@@ -66,7 +60,7 @@ Start symbol: ${cfg.startSymbol}`;
 const productionContainsOnlyEpsilon = (
   rightSideOfProduction: string[],
 ): boolean =>
-  rightSideOfProduction.length === 1 && rightSideOfProduction[0] === EPSILON;
+  rightSideOfProduction.length === 1 && isEpsilon(rightSideOfProduction[0]);
 
 /*****************************************************************************/
 /*                       REMOVAL OF USELESS SYMBOLS                          */
@@ -76,8 +70,8 @@ const initialListOfGeneratives = (cfg: Cfg): string[] =>
   getNonterminalsOnTheLeftSideOfProductionRules(cfg).filter(
     (terminal: string) =>
       cfg.productionRules[terminal].some((rightSideOfProduction: string[]) =>
-        rightSideOfProduction.every((symbol: string) =>
-          isTerminal(cfg, symbol),
+        rightSideOfProduction.every(
+          (symbol: string) => isTerminal(cfg, symbol) || isEpsilon(symbol),
         ),
       ),
   );
@@ -98,7 +92,8 @@ export const findGenerativeSymbols = (cfg: Cfg): string[] => {
                 rightSideOfProduction.every(
                   (symbol: string) =>
                     isTerminal(cfg, symbol) ||
-                    isMember(symbol, oldSetOfGeneratives),
+                    isMember(symbol, oldSetOfGeneratives) ||
+                    isEpsilon(symbol),
                 ),
             ),
         ),
@@ -186,7 +181,7 @@ export const findEmptySymbols = (cfg: Cfg): string[] => {
       cfg.productionRules[nonterminal].some(
         (rightSideOfProduction: string[]) =>
           rightSideOfProduction.length === 1 &&
-          rightSideOfProduction[0] === EPSILON,
+          isEpsilon(rightSideOfProduction[0]),
       ),
     ),
   );
@@ -311,7 +306,7 @@ export const removeUnitProductions = (cfg: Cfg): Cfg => {
           (rightSideOfProd: string[]) =>
             rightSideOfProd.length !== 1 ||
             isTerminal(cfg, rightSideOfProd[0]) ||
-            rightSideOfProd[0] === EPSILON,
+            isEpsilon(rightSideOfProd[0]),
         ),
       )
       .flat();

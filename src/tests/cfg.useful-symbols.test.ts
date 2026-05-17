@@ -68,6 +68,39 @@ const cfg4: Cfg = {
   },
 };
 
+const cfgWithEpsilon1: Cfg = {
+  terminals: new Set(["a"]),
+  nonTerminals: new Set(["S", "A"]),
+  startSymbol: "S",
+  productionRules: {
+    S: [["A"]],
+    A: [[EPSILON], ["a"]],
+  },
+};
+
+// Recursive nullable grammar
+const cfgWithEpsilon2: Cfg = {
+  terminals: new Set(["a"]),
+  nonTerminals: new Set(["S", "A"]),
+  startSymbol: "S",
+  productionRules: {
+    S: [["A"]],
+    A: [["S"], [EPSILON]],
+  },
+};
+
+// Grammar with unreachable nullable symbol
+const cfgWithEpsilon3: Cfg = {
+  terminals: new Set(["a"]),
+  nonTerminals: new Set(["S", "A", "B"]),
+  startSymbol: "S",
+  productionRules: {
+    S: [["a"]],
+    A: [[EPSILON]],
+    B: [["A"]],
+  },
+};
+
 /*****************************************************************************/
 /*                         findGenerativeSymbols                             */
 /*****************************************************************************/
@@ -86,6 +119,26 @@ describe("findGenerativeSymbols", () => {
   it("should handle recursive generative symbols", () => {
     const result = findGenerativeSymbols(cfg4);
     expect(result.sort()).toEqual(["A", "S"]);
+  });
+});
+
+describe("findGenerativeSymbols with epsilon", () => {
+  it("should treat epsilon-producing symbols as generative", () => {
+    const result = findGenerativeSymbols(cfgWithEpsilon1);
+
+    expect(result.sort()).toEqual(["A", "S"].sort());
+  });
+
+  it("should handle recursive epsilon-generative symbols", () => {
+    const result = findGenerativeSymbols(cfgWithEpsilon2);
+
+    expect(result.sort()).toEqual(["A", "S"].sort());
+  });
+
+  it("should include unreachable but generative symbols", () => {
+    const result = findGenerativeSymbols(cfgWithEpsilon3);
+
+    expect(result.sort()).toEqual(["A", "B", "S"].sort());
   });
 });
 
