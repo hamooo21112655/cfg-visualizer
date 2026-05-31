@@ -25,3 +25,18 @@ export const powerSet = (arr: any[]): any[] => {
 
   return result;
 };
+
+export const cartesianProduct = <T>(
+  A: Set<T> | T[],
+  B: Set<T> | T[],
+): T[][] => {
+  let result: T[][] = [];
+
+  [...A].forEach((aElement: T) => {
+    [...B].forEach((bElement: T) => {
+      result = [...result, [aElement, bElement]];
+    });
+  });
+
+  return result;
+};

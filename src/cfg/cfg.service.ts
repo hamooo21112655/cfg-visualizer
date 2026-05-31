@@ -1,9 +1,12 @@
-import type { Cfg } from "./types/cfg";
+import { EPSILON, type Cfg } from "./types/cfg";
 import {
   reduceToChomskyNormalForm,
   removeEpsilonProductions,
   removeUnitProductions,
   removeUselessSymbols,
+  isWordProducedByGrammar as isWordProducedByGrammarUtil,
+  print,
+  findlhsForProd,
 } from "./utils/grammar-operations.utils";
 import { validateCfg } from "./validations/create-cfg.validation";
 
@@ -81,4 +84,27 @@ export const grammarReducedToCNF = (cfg: Cfg): Cfg => {
   );
 
   return reduceToChomskyNormalForm(removeUnitProductions);
+};
+
+export const isWordProducedByGrammar = (word: string[], cfg: Cfg): boolean => {
+  const grammarInCNF = grammarReducedToCNF(cfg);
+
+  if (
+    word.length === 1 &&
+    word[0] === EPSILON &&
+    findlhsForProd([EPSILON], grammarInCNF).includes(grammarInCNF.startSymbol)
+  )
+    return true;
+
+  grammarInCNF.productionRules[grammarInCNF.startSymbol] =
+    grammarInCNF.productionRules[cfg.startSymbol].filter(
+      (rhs: string[]) =>
+        rhs.length !== 1 ||
+        rhs[0] !== EPSILON ||
+        !findlhsForProd([EPSILON], grammarInCNF).includes(
+          grammarInCNF.startSymbol,
+        ),
+    );
+
+  return isWordProducedByGrammarUtil(word, grammarInCNF);
 };

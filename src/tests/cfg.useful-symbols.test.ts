@@ -15,6 +15,7 @@ import {
   grammarWithoutEpsilonProductions,
   grammarWithoutUnitProductions,
   grammarWithoutUselessSymbols,
+  isWordProducedByGrammar,
 } from "../cfg/cfg.service";
 
 /*****************************************************************************/
@@ -873,5 +874,365 @@ describe("grammarReducedToCNF()", () => {
     grammarReducedToCNF(cfg);
 
     expect(cfg).toEqual(original);
+  });
+});
+
+/*****************************************************************************/
+/*                         isWordProducedByGrammar                           */
+/*****************************************************************************/
+
+describe("isWordProducedByGrammar()", () => {
+  it("should accept a word directly produced by grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a"], cfg)).toBe(true);
+  });
+
+  it("should reject a word not produced by grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["b"], cfg)).toBe(false);
+  });
+
+  it("should accept words generated through binary productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [["a"]],
+        B: [["b"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "b"], cfg)).toBe(true);
+  });
+
+  it("should reject words with incorrect order", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A", "B"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B"]],
+        A: [["a"]],
+        B: [["b"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["b", "a"], cfg)).toBe(false);
+  });
+
+  it("should accept recursively generated words", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "S", "A"], ["b"], [EPSILON]],
+        A: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "a", "a", "a"], cfg)).toBe(true);
+  });
+
+  it("should reject incomplete recursively generated words", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "S"], ["b"]],
+        A: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "a"], cfg)).toBe(false);
+  });
+
+  it("should accept epsilon if start symbol derives epsilon", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [[EPSILON]],
+      },
+    };
+
+    expect(isWordProducedByGrammar([EPSILON], cfg)).toBe(true);
+  });
+
+  it("should reject epsilon if grammar does not derive epsilon", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar([EPSILON], cfg)).toBe(false);
+  });
+
+  it("should handle grammars requiring CNF reduction", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "b", "c"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "b", "c"], cfg)).toBe(true);
+  });
+
+  it("should reject words longer than derivable strings", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "a"], cfg)).toBe(false);
+  });
+
+  it("should handle mixed terminal and nonterminal productions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "A", "S"], ["b"]],
+        A: [["b"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "b", "a", "b", "b"], cfg)).toBe(true);
+  });
+});
+
+/*****************************************************************************/
+/*                    COMPLEX TESTS FOR CYK ALGORITHM                        */
+/*****************************************************************************/
+
+describe("isWordProducedByGrammar - complex grammars", () => {
+  it("should accept balanced recursive word", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "S", "b"], [EPSILON]],
+      },
+    };
+
+    expect(isWordProducedByGrammar([EPSILON], cfg)).toBe(true);
+    expect(isWordProducedByGrammar(["a", "b"], cfg)).toBe(true);
+    expect(isWordProducedByGrammar(["a", "a", "b", "b"], cfg)).toBe(true);
+    expect(isWordProducedByGrammar(["a", "a", "a", "b", "b", "b"], cfg)).toBe(
+      true,
+    );
+  });
+
+  it("should reject unbalanced recursive words", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "S", "b"], [EPSILON]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "a", "b"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "b", "b"], cfg)).toBe(false);
+  });
+
+  it("should accept arithmetic-like expressions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "+", "*"]),
+      nonTerminals: new Set(["E", "T", "F"]),
+      startSymbol: "E",
+      productionRules: {
+        E: [["E", "+", "T"], ["T"]],
+        T: [["T", "*", "F"], ["F"]],
+        F: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "+", "a"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "+", "a", "*", "a"], cfg)).toBe(true);
+  });
+
+  it("should reject malformed arithmetic expressions", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "+", "*"]),
+      nonTerminals: new Set(["E", "T", "F"]),
+      startSymbol: "E",
+      productionRules: {
+        E: [["E", "+", "T"], ["T"]],
+        T: [["T", "*", "F"], ["F"]],
+        F: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["+", "a"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "*"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "+", "*", "a"], cfg)).toBe(false);
+  });
+
+  it("should handle deeply recursive grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "S"], ["b"]],
+        A: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "a", "a", "a", "b"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "a", "b"], cfg)).toBe(true);
+  });
+
+  it("should reject strings not ending correctly in recursive grammar", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S", "A"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "S"], ["b"]],
+        A: [["a"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "a", "a"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["b", "a"], cfg)).toBe(false);
+  });
+
+  it("should accept palindrome-like structures", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "S", "a"], ["b", "S", "b"], ["a"], ["b"], [EPSILON]],
+      },
+    };
+
+    expect(isWordProducedByGrammar([EPSILON], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "a"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "b", "b", "a"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["b", "a", "a", "b"], cfg)).toBe(true);
+  });
+
+  it("should reject non-palindrome words", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "S", "a"], ["b", "S", "b"], ["a"], ["b"], [EPSILON]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "b"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "a", "b"], cfg)).toBe(false);
+  });
+
+  it("should handle grammar with many nullable symbols", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c"]),
+      nonTerminals: new Set(["S", "A", "B", "C"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B", "C"]],
+        A: [["a"], [EPSILON]],
+        B: [["b"], [EPSILON]],
+        C: [["c"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["c"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "c"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["b", "c"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "b", "c"], cfg)).toBe(true);
+  });
+
+  it("should reject invalid nullable combinations", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c"]),
+      nonTerminals: new Set(["S", "A", "B", "C"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["A", "B", "C"]],
+        A: [["a"], [EPSILON]],
+        B: [["b"], [EPSILON]],
+        C: [["c"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["b"], cfg)).toBe(false);
+
+    expect(isWordProducedByGrammar(["a", "b"], cfg)).toBe(false);
+  });
+
+  it("should handle long CNF transformations", () => {
+    const cfg: Cfg = {
+      terminals: new Set(["a", "b", "c", "d", "e"]),
+      nonTerminals: new Set(["S"]),
+      startSymbol: "S",
+      productionRules: {
+        S: [["a", "b", "c", "d", "e"]],
+      },
+    };
+
+    expect(isWordProducedByGrammar(["a", "b", "c", "d", "e"], cfg)).toBe(true);
+
+    expect(isWordProducedByGrammar(["a", "b", "c", "d"], cfg)).toBe(false);
   });
 });

@@ -1,6 +1,12 @@
 import { createCfg } from "../cfg.service";
 import { EPSILON, type Cfg } from "../types/cfg";
-import { isMember, isSubsetOf, powerSet, union } from "./set-operations.utils";
+import {
+  cartesianProduct,
+  isMember,
+  isSubsetOf,
+  powerSet,
+  union,
+} from "./set-operations.utils";
 
 /*****************************************************************************/
 /*                           BASIC OPERATIONS                                */
@@ -37,6 +43,25 @@ export const removeDuplicatesOnRightSideOfProduction = (
   );
 
   return [...productionsStringified].map((prod: string) => JSON.parse(prod));
+};
+
+export const findlhsForProd = (prod: string[], cfg: Cfg): string[] => {
+  let lhsNonterminals: string[] = [];
+
+  getNonterminalsOnTheLeftSideOfProductionRules(cfg).forEach(
+    (nonTerminal: string) => {
+      if (
+        cfg.productionRules[nonTerminal].some(
+          (rhsProd: string[]) =>
+            JSON.stringify(rhsProd) === JSON.stringify(prod),
+        )
+      ) {
+        lhsNonterminals = [...lhsNonterminals, nonTerminal];
+      }
+    },
+  );
+
+  return lhsNonterminals;
 };
 
 const printRulesForOneNonterminal = (cfg: Cfg, nonTerminal: string): string =>
@@ -253,7 +278,7 @@ export const removeEpsilonProductions = (cfg: Cfg): Cfg => {
 
   if (isMember(cfg.startSymbol, emptySymbols))
     cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol] = [
-      ...cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol],
+      ...(cfgWithoutEpsilonProductions.productionRules[cfg.startSymbol] || []),
       [EPSILON],
     ];
   return cfgWithoutEpsilonProductions;
@@ -286,8 +311,6 @@ export const unit = (cfg: Cfg, symbol: string): string[] => {
   }
   return [...newSetOfUnits];
 };
-
-// ne zaboraviti u servisu jos jednom pozvati funkciju za uklanjanje beskorisnih simbola nakon sto se uklone jedinicne produkcije
 
 export const removeUnitProductions = (cfg: Cfg): Cfg => {
   const cfgWithoutUnitProductions: Cfg = createCfg(
@@ -360,9 +383,9 @@ export const reduceToChomskyNormalForm = (cfg: Cfg): Cfg => {
 
   getNonterminalsOnTheLeftSideOfProductionRules(reducedCfg).forEach(
     (symbol: string) => {
-      reducedCfg.productionRules[symbol]
-        .filter((prod: string[]) => prod.length > 2)
-        .forEach((rightSideOfProd: string[], prodIndex: number) => {
+      reducedCfg.productionRules[symbol].forEach(
+        (rightSideOfProd: string[], prodIndex: number) => {
+          if (rightSideOfProd.length <= 2) return;
           let lengthyProd = [...rightSideOfProd];
           while (lengthyProd.length > 2) {
             const [firstSymbol, secondSymbol, ...restOfTheSymbols] =
@@ -381,9 +404,47 @@ export const reduceToChomskyNormalForm = (cfg: Cfg): Cfg => {
             `T_${index - 1}`,
             rightSideOfProd[rightSideOfProd.length - 1],
           ];
-        });
+        },
+      );
     },
   );
 
   return finalReducedCfg;
+};
+
+/*****************************************************************************/
+/*                              CYK ALGORITHM                                */
+/*****************************************************************************/
+
+export const isWordProducedByGrammar = (word: string[], cfg: Cfg): boolean => {
+  let productionTable: string[][][] = [];
+
+  word.forEach((_, index: number) => {
+    productionTable.push([]);
+
+    for (let i = 0; i < word.length - index; i++) {
+      productionTable[index].push([]);
+      if (index > 0) continue;
+      productionTable[0][i].push(...findlhsForProd([word[i]], cfg));
+    }
+  });
+
+  for (let i = 1; i < word.length; i++) {
+    for (let j = 0; j < productionTable[i].length; j++) {
+      let lhs: string[] = [];
+      for (let k = 0; k < i; k++) {
+        const cartesianProductOfProds: string[][] = cartesianProduct(
+          productionTable[k][j],
+          productionTable[i - k - 1][j + k + 1],
+        );
+
+        cartesianProductOfProds.forEach(
+          (rhs: string[]) => (lhs = [...lhs, ...findlhsForProd(rhs, cfg)]),
+        );
+      }
+      productionTable[i][j].push(...new Set(lhs));
+    }
+  }
+
+  return productionTable[word.length - 1][0].includes(cfg.startSymbol);
 };
