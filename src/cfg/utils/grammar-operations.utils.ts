@@ -1,7 +1,7 @@
 import { createCfg } from "../cfg.service";
 import { EPSILON, type Cfg } from "../types/cfg";
 import {
-  cartesianProduct,
+  cartesianProductOfProductionTrees,
   isMember,
   isSubsetOf,
   powerSet,
@@ -416,8 +416,14 @@ export const reduceToChomskyNormalForm = (cfg: Cfg): Cfg => {
 /*                              CYK ALGORITHM                                */
 /*****************************************************************************/
 
+export interface ProductionTree {
+  root?: string;
+  rightBranch: string | ProductionTree;
+  leftBranch?: string | ProductionTree;
+}
+
 export const isWordProducedByGrammar = (word: string[], cfg: Cfg): boolean => {
-  let productionTable: string[][][] = [];
+  let productionTable: ProductionTree[][][] = [];
 
   word.forEach((_, index: number) => {
     productionTable.push([]);
@@ -425,26 +431,52 @@ export const isWordProducedByGrammar = (word: string[], cfg: Cfg): boolean => {
     for (let i = 0; i < word.length - index; i++) {
       productionTable[index].push([]);
       if (index > 0) continue;
-      productionTable[0][i].push(...findlhsForProd([word[i]], cfg));
+      const lhsSymbols: string[] = findlhsForProd([word[i]], cfg);
+
+      const firstLevelProds: ProductionTree[] = lhsSymbols.map(
+        (lhs: string) => ({
+          root: lhs,
+          rightBranch: word[i],
+        }),
+      );
+      productionTable[0][i].push(...firstLevelProds);
     }
   });
 
   for (let i = 1; i < word.length; i++) {
     for (let j = 0; j < productionTable[i].length; j++) {
-      let lhs: string[] = [];
+      let lhs: ProductionTree[] = [];
       for (let k = 0; k < i; k++) {
-        const cartesianProductOfProds: string[][] = cartesianProduct(
-          productionTable[k][j],
-          productionTable[i - k - 1][j + k + 1],
-        );
+        const cartesianProductOfProds: ProductionTree[] =
+          cartesianProductOfProductionTrees(
+            productionTable[k][j],
+            productionTable[i - k - 1][j + k + 1],
+          );
 
-        cartesianProductOfProds.forEach(
-          (rhs: string[]) => (lhs = [...lhs, ...findlhsForProd(rhs, cfg)]),
-        );
+        cartesianProductOfProds.forEach((rhs: ProductionTree) => {
+          const rhsSymbols: string[] = [
+            (rhs.leftBranch as ProductionTree).root!,
+            (rhs.rightBranch as ProductionTree).root!,
+          ];
+
+          const lhsNonTerminals: string[] = findlhsForProd(rhsSymbols, cfg);
+
+          const newTrees: ProductionTree[] = lhsNonTerminals.map(
+            (nonTerminal: string) => ({
+              root: nonTerminal,
+              leftBranch: rhs.leftBranch,
+              rightBranch: rhs.rightBranch,
+            }),
+          );
+
+          lhs = [...lhs, ...newTrees];
+        });
       }
       productionTable[i][j].push(...new Set(lhs));
     }
   }
 
-  return productionTable[word.length - 1][0].includes(cfg.startSymbol);
+  return productionTable[word.length - 1][0].some(
+    (productionTree: ProductionTree) => productionTree.root === cfg.startSymbol,
+  );
 };

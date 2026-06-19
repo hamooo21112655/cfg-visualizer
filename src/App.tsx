@@ -6,16 +6,31 @@ import {
 } from "./cfg/utils/grammar-operations.utils";
 
 function App() {
+  // const cfg: Cfg = {
+  //   terminals: new Set(["a", "b"]),
+  //   nonTerminals: new Set(["S"]),
+  //   startSymbol: "S",
+  //   productionRules: {
+  //     S: [["a", "S", "a"], ["b", "S", "b"], ["a"], ["b"], [EPSILON]],
+  //   },
+  // };
+
   const cfg: Cfg = {
     terminals: new Set(["a", "b"]),
-    nonTerminals: new Set(["S"]),
+    nonTerminals: new Set(["S", "A", "B", "C"]),
     startSymbol: "S",
     productionRules: {
-      S: [["a", "S", "a"], ["b", "S", "b"], ["a"], ["b"], [EPSILON]],
+      S: [
+        ["A", "B"],
+        ["B", "C"],
+      ],
+      A: [["B", "A"], ["a"]],
+      B: [["C", "C"], ["b"]],
+      C: [["A", "B"], ["a"]],
     },
   };
 
-  isWordProducedByGrammar(["a", "a", "b"], cfg);
+  isWordProducedByGrammar(["b", "a", "a", "b", "a"], cfg);
 
   return (
     <>

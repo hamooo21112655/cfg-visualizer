@@ -1,3 +1,5 @@
+import type { ProductionTree } from "./grammar-operations.utils";
+
 export const intersection = <T>(A: Set<T> | T[], B: Set<T> | T[]): Set<T> =>
   new Set<T>([...A].filter((member) => [...B].includes(member)));
 
@@ -26,15 +28,22 @@ export const powerSet = (arr: any[]): any[] => {
   return result;
 };
 
-export const cartesianProduct = <T>(
-  A: Set<T> | T[],
-  B: Set<T> | T[],
-): T[][] => {
-  let result: T[][] = [];
+// ovo treba prilagoditi novoj strukturi productionTable tabele
+export const cartesianProductOfProductionTrees = (
+  A: Set<ProductionTree> | ProductionTree[],
+  B: Set<ProductionTree> | ProductionTree[],
+): ProductionTree[] => {
+  let result: ProductionTree[] = [];
 
-  [...A].forEach((aElement: T) => {
-    [...B].forEach((bElement: T) => {
-      result = [...result, [aElement, bElement]];
+  [...A].forEach((aElement: ProductionTree) => {
+    [...B].forEach((bElement: ProductionTree) => {
+      result = [
+        ...result,
+        {
+          leftBranch: { ...aElement },
+          rightBranch: { ...bElement },
+        },
+      ];
     });
   });
 
